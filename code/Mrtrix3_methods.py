@@ -26,7 +26,7 @@ def fit_tensors(dwi_file: Path, mask_file: Path, dti_file: Path, fa_file: Path):
     # tsr.inputs.args = '- | tensor2metrtic - -fa'
 
 
-def gen_response(dwi_file: Path, dwi_mask: Path, working_dir: Path):
+def generate_response(dwi_file: Path, dwi_mask: Path, working_dir: Path):
     resp = mrt.ResponseSD()
     resp.inputs.in_file = dwi_file
     resp.inputs.algorithm = "dhollander"
@@ -39,7 +39,7 @@ def gen_response(dwi_file: Path, dwi_mask: Path, working_dir: Path):
     return resp.inputs.wm_file, resp.inputs.gm_file, resp.inputs.csf_file
 
 
-def calc_fibre_orientation(
+def calculate_fibre_orientation(
     dwi_file: str, dwi_mask: str, response_dict: dict, fod_dict: dict
 ):
     fod = mrt.EstimateFOD()

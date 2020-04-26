@@ -2,7 +2,8 @@
 import os
 from dipy.io.streamline import load_tractogram
 import glob
-from Networks_plasticity.code import Mrtrix3_methods as mrt_methods
+from PyTracts.code import Mrtrix3_methods as mrt_methods
+from PyTracts.code import messages
 from pathlib import Path
 import time
 
@@ -124,7 +125,7 @@ def check_dir_existence(directory: Path):
         directory.mkdir()
 
 
-class Gen_FA:
+class GenerateFA:
     def __init__(self, dwi_file: Path, mask_file: Path, tracts_dir: Path):
         """
         Class to generate FA and DTI images from preprocessed dwi image and mask.
@@ -142,18 +143,16 @@ class Gen_FA:
         self.exist = check_files_existence([self.fa_file, self.dti_file])
 
     def __str__(self):
-        str_to_print = f"""Fractional anisotrophy image generator.
-        Working directory: {self.tract_dir.parent}
-        Inputs:
-            - Preprocessed DWI: {self.dwi_file.name}
-            - Mask: {self.mask_file.name}
-        Outputs:
-            - Output-containing directory: {self.tract_dir}
-            - Fractional anisotrophy (FA) file: {self.fa_file.name}
-        """
+        str_to_print = messages.GENERATE_FA.format(
+            subj_dir=self.tract_dir.parent,
+            dwi_name=self.dwi_file.name,
+            mask_name=self.mask_file.name,
+            tracts_dir=self.tract_dir,
+            FA_name=self.fa_file.name,
+        )
         return str_to_print
 
-    def gen_fa(self):
+    def generate_fa(self):
         fa_file = mrt_methods.fit_tensors(
             self.dwi_file, self.mask_file, self.dti_file, self.fa_file
         )
@@ -162,13 +161,13 @@ class Gen_FA:
     def run(self):
         if not self.exist:
             print("Generating FA image for group-level analysis")
-            self.fa_file = self.gen_fa()
+            self.fa_file = self.generate_fa()
         else:
             print("Already generated FA image for group-level analysis, continuing...")
         return self.fa_file
 
 
-class Gen_Responses:
+class GenerateResponses:
     def __init__(self, dwi_file: Path, mask: Path, tracts_dir: Path):
         """
         Estimating tissue response functions for spherical deconvolution
@@ -192,19 +191,16 @@ class Gen_Responses:
         )
 
     def __str__(self):
-        str_to_print = f"""Tissue response function estimator.
-        Working directory: {self.tracts_dir.parent}
-        Inputs:
-            - Preprocessed DWI: {self.dwi_file.name}
-            - Mask: {self.mask}
-        Outputs:
-            - Outputs-containing directory: {self.tracts_dir}
-            - Tissue response function files: ["response_wm.txt", "response_gm.txt", "response_csf.txt"]
-        """
+        str_to_print = messages.GENERATE_RESPONSES.format(
+            subj_dir=self.tracts_dir.parent,
+            dwi_name=self.dwi_file.name,
+            mask_name=self.mask.name,
+            tracts_dir=self.tracts_dir,
+        )
         return str_to_print
 
-    def gen_response(self):
-        response_wm, response_gm, response_csf = mrt_methods.gen_response(
+    def generate_response(self):
+        response_wm, response_gm, response_csf = mrt_methods.generate_response(
             self.dwi_file, self.mask, self.tracts_dir
         )
         return response_wm, response_gm, response_csf
@@ -212,7 +208,9 @@ class Gen_Responses:
     def run(self):
         if not self.exist:
             print("Estimating tissue response functions for spherical deconvolution")
-            self.response_wm, self.response_gm, self.response_csf = self.gen_response()
+            self.response_wm, self.response_gm, self.response_csf = (
+                self.generate_response()
+            )
         else:
             print("Already estimated tissue response functions, continuing...")
         response_dict = dict()
@@ -223,7 +221,7 @@ class Gen_Responses:
         return response_dict
 
 
-class Calc_Fibre_Orientation:
+class CalculateFibreOrientation:
     def __init__(
         self, dwi_file: Path, dwi_mask: Path, response_dict: dict, tracts_dir: Path
     ):
@@ -246,19 +244,16 @@ class Calc_Fibre_Orientation:
         self.exist = check_files_existence(list(self.fod_dict.values()))
 
     def __str__(self):
-        str_to_print = f"""Fibre orientation distributions estimator.
-        Working directory: {self.tracts_dir.parent}
-        Inputs:
-            - Preprocessed DWI: {self.dwi_file.name}
-            - Mask: {self.mask}
-        Outputs:
-            - Outputs-containing directory: {self.tracts_dir}
-            - Fibre orientation distributions (FOD) files: ["FOD_wm.mif", "FOD_gm.txt", "FOD_csf.txt"]
-        """
+        str_to_print = messages.CALCULATE_FIBER_ORIENTATION.format(
+            subj_dir=self.tracts_dir.parent,
+            dwi_name=self.dwi_file.name,
+            mask_name=self.mask.name,
+            tracts_dir=self.tracts_dir,
+        )
         return str_to_print
 
     def fibre_orientation(self):
-        mrt_methods.calc_fibre_orientation(
+        mrt_methods.calculate_fibre_orientation(
             self.dwi_file, self.mask, self.response_dict, self.fod_dict
         )
 
@@ -271,7 +266,7 @@ class Calc_Fibre_Orientation:
         return self.fod_dict
 
 
-class Generate_tck:
+class GenerateTck:
     def __init__(self, fod_dict: dict, seg_5tt: Path, tract_dir: Path):
         """
         Generate .tck tracts file using Mrtrix3's iFOD2 algorithm
@@ -289,17 +284,13 @@ class Generate_tck:
         self.exist = check_files_existence([self.tractogram])
 
     def __str__(self):
-        str_to_print = f"""Tracts generator parameters:
-        working directory: {self.tractogram.parent.parent}
-        Inputs:
-            - White matter fiber orientation distributions file: {self.fod_wm.name} (at {self.tractogram.parent.name})
-            - Five-tissue-type: {self.seg_5tt.name} (at "dwi/Mrtrix_prep")
-            - number of analyzed tracts: 350000
-        Outputs:
-            - Outputs-contianing directory: {self.tractogram.parent}
-            - Tractogram (.tck) file: {self.tractogram.name}
-            - Seeds file: seeds.csv
-        """
+        str_to_print = messages.GENERATE_TCK.format(
+            subj_dir=self.tractogram.parent.parent,
+            fod_wm_name=self.fod_wm.name,
+            tracts_dir=self.tractogram.parent,
+            seg_5tt_name=self.seg_5tt.name,
+            tractogram_name=self.tractogram.name,
+        )
         return str_to_print
 
     def generate_tracts(self):
@@ -319,7 +310,7 @@ class Generate_tck:
         return self.tractogram
 
 
-class Convert_tck_to_trk:
+class ConvertTck2Trk:
     def __init__(self, tck_stream: Path, dwi_nii: Path, trk_stream: Path):
         self.tck_stream = tck_stream
         self.dwi = dwi_nii
@@ -327,14 +318,12 @@ class Convert_tck_to_trk:
         self.exist = check_files_existence([self.trk_stream])
 
     def __str__(self):
-        str_to_print = f"""tck to trk converter.
-        Working directory: {self.dwi.parent.parent}
-        Inputs:
-            - Preprocessed DWI image: {self.dwi.name} (at "dwi" subdirectory)
-            - tck format streamlines: {self.tck_stream.name} (at "tractography" subdirectory)
-        Outputs:
-            - trk format streamlines: {self.trk_stream}
-        """
+        str_to_print = messages.CONVERT_TCK_2_TRK.format(
+            subj_dir=self.dwi.parent.parent,
+            dwi_name=self.dwi.name,
+            tck_name=self.tck_stream.name,
+            trk_name=self.trk_stream.name,
+        )
         return str_to_print
 
     def convert(self):
@@ -351,7 +340,7 @@ class Convert_tck_to_trk:
         return self.trk_stream
 
 
-class Generate_Tracts_with_mrtrix3:
+class GenerateTractsMrtrix3:
     """
     Mrtrix3-based tractography pipeline
     """
@@ -369,10 +358,9 @@ class Generate_Tracts_with_mrtrix3:
         self.subjects = subjects_dict
 
     def __str__(self):
-        str_to_print = f"""Mrtrix3-based tractography generator
-        Working ("mother") dir: {self.mother_dir}
-        Subjects: {self.subjects.keys()}
-        """
+        str_to_print = messages.TRACTS_WITH_MRTRIX3.format(
+            mother_dir=self.mother_dir, subjects=self.subjects.keys()
+        )
         return str_to_print
 
     def load_files(self, subj: str, folder_name: Path):
@@ -388,38 +376,40 @@ class Generate_Tracts_with_mrtrix3:
         )
         return dwi, dwi_mask, five_tissue, dwi_nii
 
-    def gen_fa(self, dwi: Path, mask: Path, tracts_dir: Path):
-        fa = Gen_FA(dwi, mask, tracts_dir)
+    def generate_fa(self, dwi: Path, mask: Path, tracts_dir: Path):
+        fa = GenerateFA(dwi, mask, tracts_dir)
         return fa
 
-    def gen_responses(self, dwi: Path, mask: Path, tracts_dir: Path):
-        resp = Gen_Responses(dwi, mask, tracts_dir)
+    def generate_responses(self, dwi: Path, mask: Path, tracts_dir: Path):
+        resp = GenerateResponses(dwi, mask, tracts_dir)
         return resp
 
-    def calc_fibre_oriention(
+    def calculate_fibre_oriention(
         self, dwi: Path, mask: Path, response_dict: dict, tracts_dir: Path
     ):
-        fod = Calc_Fibre_Orientation(dwi, mask, response_dict, tracts_dir)
+        fod = CalculateFibreOrientation(dwi, mask, response_dict, tracts_dir)
         return fod
 
     def generate_tracts(self, fod_dict: dict, five_tissue: Path, tracts_dir: Path):
-        tracts = Generate_tck(fod_dict, five_tissue, tracts_dir)
+        tracts = GenerateTck(fod_dict, five_tissue, tracts_dir)
         return tracts
 
     def print_start(self, subj: str):
         folder_name = self.subjects[subj]
         tracts_dir = folder_name / "tractography"
         dwi, dwi_mask, five_tissue, dwi_nii = self.load_files(subj, folder_name)
-        str_to_print = f"""Initializing tracts processing for {subj}...
-        Initial input files were extracted from subject`s directory at: {folder_name}
-            Preprocessed DWI image: {dwi.name} (at "dwi" subdirectory)
-            Brain mask: {dwi_mask.name} (at "dwi" subdirectory)
-            Five-tissue-type (5TT): {five_tissue.name} (at "anat" subdirectory)
-        Output files file will be located at "{tracts_dir.name}" subdirectory under subject's directory."""
+        str_to_print = messages.MRTRIX_PRINT_START.format(
+            subj=subj,
+            folder_name=folder_name,
+            dwi_name=dwi.name,
+            dwi_mask=dwi_mask.name,
+            five_tissue=five_tissue.name,
+            tract_dir=tracts_dir.name,
+        )
         return tracts_dir, dwi, dwi_mask, five_tissue, dwi_nii, str_to_print
 
     def convert_tck_to_trk(self, tck_tracts: Path, dwi_nii: Path, trk_tracts: Path):
-        trk_converter = Convert_tck_to_trk(tck_tracts, dwi_nii, trk_tracts)
+        trk_converter = ConvertTck2Trk(tck_tracts, dwi_nii, trk_tracts)
         return trk_converter
 
     def run(self):
@@ -434,13 +424,13 @@ class Generate_Tracts_with_mrtrix3:
                 str_to_print,
             ) = self.print_start(subj)
             print(str_to_print)
-            fa = self.gen_fa(dwi, mask, tracts_dir)
+            fa = self.generate_fa(dwi, mask, tracts_dir)
             print(fa)
             fa.run()
-            resp = self.gen_responses(dwi, mask, tracts_dir)
+            resp = self.generate_responses(dwi, mask, tracts_dir)
             print(resp)
             response_dict = resp.run()
-            fod = self.calc_fibre_oriention(dwi, mask, response_dict, tracts_dir)
+            fod = self.calculate_fibre_oriention(dwi, mask, response_dict, tracts_dir)
             print(fod)
             fod_dict = fod.run()
             tract = self.generate_tracts(fod_dict, five_tissue, tracts_dir)
