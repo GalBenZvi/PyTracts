@@ -3,9 +3,10 @@ import os
 from dipy.io.streamline import load_tractogram
 import glob
 from PyTracts.code import Mrtrix3_methods as mrt_methods
-from PyTracts.code import messages
+from PyTracts.logs import messages
 from pathlib import Path
 import time
+import logging
 
 
 def init_process(mother_dir="/home/gal/Brain_Networks"):
@@ -160,10 +161,12 @@ class GenerateFA:
 
     def run(self):
         if not self.exist:
-            print("Generating FA image for group-level analysis")
+            logging.info("Generating FA image for group-level analysis")
             self.fa_file = self.generate_fa()
         else:
-            print("Already generated FA image for group-level analysis, continuing...")
+            logging.warning(
+                "Already generated FA image for group-level analysis, continuing..."
+            )
         return self.fa_file
 
 
@@ -207,12 +210,16 @@ class GenerateResponses:
 
     def run(self):
         if not self.exist:
-            print("Estimating tissue response functions for spherical deconvolution")
+            logging.info(
+                "Estimating tissue response functions for spherical deconvolution"
+            )
             self.response_wm, self.response_gm, self.response_csf = (
                 self.generate_response()
             )
         else:
-            print("Already estimated tissue response functions, continuing...")
+            logging.warning(
+                "Already estimated tissue response functions, continuing..."
+            )
         response_dict = dict()
         for key, val in zip(
             ["wm", "gm", "csf"], [self.response_wm, self.response_gm, self.response_csf]
@@ -259,10 +266,12 @@ class CalculateFibreOrientation:
 
     def run(self):
         if not self.exist:
-            print("Estimating Fibre Orientation Distributions")
+            logging.info("Estimating Fibre Orientation Distributions")
             self.fibre_orientation()
         else:
-            print("Already estimated fibre orientation distributions, continuing...")
+            logging.warning(
+                "Already estimated fibre orientation distributions, continuing..."
+            )
         return self.fod_dict
 
 
@@ -297,14 +306,14 @@ class GenerateTck:
         tractogram = mrt_methods.generate_tracts(
             self.fod_wm, self.tractogram, self.seg_5tt
         )
-        print(f"Generated tractogram.tck file at {tractogram.parent}")
+        logging.info(f"Generated tractogram.tck file at {tractogram.parent}")
 
     def run(self):
         if not self.exist:
-            print("Generating tractogram.tck file using iFOD2 algorithm...")
+            logging.info("Generating tractogram.tck file using iFOD2 algorithm...")
             self.generate_tracts()
         else:
-            print(
+            logging.warning(
                 "Already generated tractogram.\n to recreate it, please remove the currently existing .tck file"
             )
         return self.tractogram
@@ -333,10 +342,10 @@ class ConvertTck2Trk:
 
     def run(self):
         if not self.exist:
-            print("Converting tractography file from .tck format to .trk")
+            logging.info("Converting tractography file from .tck format to .trk")
             self.convert()
         else:
-            print("Given input for .trk tractography file already exists.")
+            logging.warning("Given input for .trk tractography file already exists.")
         return self.trk_stream
 
 
@@ -423,22 +432,30 @@ class GenerateTractsMrtrix3:
                 dwi_nii,
                 str_to_print,
             ) = self.print_start(subj)
-            print(str_to_print)
+            logging.basicConfig(
+                filename=tracts_dir / "tractography.log",
+                filemode="w",
+                format="%(asctime)s - %(message)s",
+                level=logging.INFO,
+            )
+            logging.info(str_to_print)
             fa = self.generate_fa(dwi, mask, tracts_dir)
-            print(fa)
+            logging.info(fa)
             fa.run()
             resp = self.generate_responses(dwi, mask, tracts_dir)
-            print(resp)
+            logging.info(resp)
             response_dict = resp.run()
             fod = self.calculate_fibre_oriention(dwi, mask, response_dict, tracts_dir)
-            print(fod)
+            logging.info(fod)
             fod_dict = fod.run()
             tract = self.generate_tracts(fod_dict, five_tissue, tracts_dir)
-            print(tract)
+            logging.info(tract)
             tractogram = tract.run()
             trk_file = Path(tractogram.parent / f"{tractogram.stem}.trk")
             trk_converter = self.convert_tck_to_trk(tractogram, dwi_nii, trk_file)
-            print(trk_converter)
+            logging.info(trk_converter)
             tractogram_trk = trk_converter.run()
             elapsed = (time.time() - t) / 60
-            print("%s`s whole-brain tractography took %.2f minutes" % (subj, elapsed))
+            logging.info(
+                "%s`s whole-brain tractography took %.2f minutes" % (subj, elapsed)
+            )
