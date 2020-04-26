@@ -413,7 +413,7 @@ class GenerateTractsMrtrix3:
             dwi_name=dwi.name,
             dwi_mask=dwi_mask.name,
             five_tissue=five_tissue.name,
-            tract_dir=tracts_dir.name,
+            tracts_dir=tracts_dir.name,
         )
         return tracts_dir, dwi, dwi_mask, five_tissue, dwi_nii, str_to_print
 
@@ -432,9 +432,10 @@ class GenerateTractsMrtrix3:
                 dwi_nii,
                 str_to_print,
             ) = self.print_start(subj)
+            check_dir_existence(tracts_dir)
             logging.basicConfig(
                 filename=tracts_dir / "tractography.log",
-                filemode="w",
+                filemode="w+",
                 format="%(asctime)s - %(message)s",
                 level=logging.INFO,
             )
