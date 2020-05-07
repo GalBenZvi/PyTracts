@@ -1,4 +1,8 @@
 from pathlib import Path
+
+FSLOUTTYPE = ".nii.gz"
+
+
 def check_files_existence(files: list):
     """
     Checks the existence of a list of files (all should exist)

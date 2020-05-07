@@ -2,11 +2,12 @@
 import os
 from dipy.io.streamline import load_tractogram
 import glob
-from PyTracts import Mrtrix3_methods as mrt_methods
 from logs import messages
 from pathlib import Path
 import time
+import nibabel as nib
 import logging
+from PyTracts import weighted_tracts
 from PyTracts.MrtrixTractography import (
     CalculateFibreOrientation,
     GenerateTck,
@@ -14,7 +15,10 @@ from PyTracts.MrtrixTractography import (
     GenerateResponses,
     ConvertTck2Trk,
 )
-from PyTracts.utils import check_dir_existence, check_dir_existence
+from PyTracts.utils import check_dir_existence, check_dir_existence, FSLOUTTYPE
+from atlases.atlases import Atlases
+
+ATLAS = Atlases.megaatlas_dir.value
 
 
 def init_process(mother_dir="/home/gal/Brain_Networks"):
@@ -65,25 +69,35 @@ class Generate_Tracts_with_dipy:
 
 
 class Generate_Connectivity:
-    def __init__(self, subject=None):
-        self.mother_dir, self.subjects = init_process()
-        if subject:
-            self.subjects = [subject]
+    def __init__(self, derivatives_dir: Path, subj=None, atlas_dir: Path = ATLAS):
+        self.derivatives = derivatives_dir
+        if subj:
+            subjects = [subj]
+        else:
+            subjects = [subj.name for subj in derivatives_dir.glob("sub-*")]
+        subjects.sort()
+        subjects_dict = dict()
+        for subj in subjects:
+            subjects_dict[subj] = derivatives_dir / subj
+        self.subjects = subjects_dict
+        self.atlas_dir = atlas_dir
 
     def init_subject_params(self, subj: str):
-        dwi_file = f"{self.mother_dir}/Niftis/{subj}/dwi/diff_corrected.nii.gz"
-        bvec_file = glob.glob(f"{self.mother_dir}/Niftis/{subj}/dwi/*.bvec")[0]
-        reg_folder = (
-            f"{self.mother_dir}/Derivatives/Registrations/{subj}/Atlases_and_Transforms"
+        dwi_file = (
+            self.derivatives
+            / subj
+            / "dwi"
+            / f"{subj}_acq-AP_dwi_preprocessed_biascorr{FSLOUTTYPE}"
         )
-        stream_folder = f"{self.mother_dir}/Derivatives/Streamlines/{subj}"
-        streamlines_file = f"{stream_folder}/{subj}_wholebrain.trk"
-        streamlines = load_tractogram(streamlines_file, dwi_file)
-
+        bvec_file = glob.glob(f"{dwi_file.parent}/*.bvec")[0]
+        reg_folder = self.derivatives / subj / "atlases"
+        stream_folder = self.derivatives / subj / "tractography"
+        streamlines_file = stream_folder / "tractogram.trk"
+        # streamlines = load_tractogram(streamlines_file, dwi_file)
+        streamlines = nib.streamlines.load(streamlines_file)
         return streamlines, stream_folder, reg_folder, bvec_file
 
     def run_whole_head_connectivity(self):
-        atlas_folder = f"{self.mother_dir}/Derivatives/megaatlas"
         for subj in self.subjects:
             (
                 streamlines,
@@ -92,7 +106,7 @@ class Generate_Connectivity:
                 bvec_file,
             ) = self.init_subject_params(subj)
             lab_labels_index, affine = weighted_tracts.nodes_by_index(reg_folder)
-            index_file = f"{atlas_folder}/megaatlascortex2nii_origin.txt"
+            index_file = glob.glob(f"{self.atlas_dir}/*.txt")[0]
             labels_headers, idx = weighted_tracts.nodes_labels_mega(index_file)
             new_data, m, grouping = weighted_tracts.non_weighted_con_mat_mega(
                 streamlines.streamlines, lab_labels_index, affine, idx, stream_folder
@@ -113,250 +127,6 @@ class Generate_Connectivity:
             weighted_tracts.draw_con_mat(
                 new_data, labels_headers, weighted_fig_name, is_weighted=True
             )
-
-
-def check_files_existence(files: list):
-    """
-    Checks the existence of a list of files (all should exist)
-    Arguments:
-        file {Path} -- [description]
-
-    Returns:
-        [type] -- [description]
-    """
-    exist = all(Path(f).exists() for f in files)
-    return exist
-
-
-# def check_dir_existence(directory: Path):
-#     if not directory.exists():
-#         print(f"Creating directory: {directory}")
-#         directory.mkdir()
-
-
-# class GenerateFA:
-#     def __init__(self, dwi_file: Path, mask_file: Path, tracts_dir: Path):
-#         """
-#         Class to generate FA and DTI images from preprocessed dwi image and mask.
-#         Arguments:
-#             tracts_dir {Path} -- [output directory, where fa.mif and dti.if will be produced]
-#             dwi_file {Path} -- [path to preprocessed dwi image]
-#             mask_file {Path} -- [path to dwi mask image]
-#         """
-#         self.tract_dir = tracts_dir
-#         check_dir_existence(self.tract_dir)
-#         self.dwi_file = dwi_file
-#         self.mask_file = mask_file
-#         self.dti_file = tracts_dir / "dti.mif"
-#         self.fa_file = tracts_dir / "fa.mif"
-#         self.exist = check_files_existence([self.fa_file, self.dti_file])
-
-#     def __str__(self):
-#         str_to_print = messages.GENERATE_FA.format(
-#             subj_dir=self.tract_dir.parent,
-#             dwi_name=self.dwi_file.name,
-#             mask_name=self.mask_file.name,
-#             tracts_dir=self.tract_dir,
-#             FA_name=self.fa_file.name,
-#         )
-#         return str_to_print
-
-#     def generate_fa(self):
-#         fa_file = mrt_methods.fit_tensors(
-#             self.dwi_file, self.mask_file, self.dti_file, self.fa_file
-#         )
-#         return fa_file
-
-#     def run(self):
-#         if not self.exist:
-#             logging.info("Generating FA image for group-level analysis")
-#             self.fa_file = self.generate_fa()
-#         else:
-#             logging.warning(
-#                 "Already generated FA image for group-level analysis, continuing..."
-#             )
-#         return self.fa_file
-
-
-# class GenerateResponses:
-#     def __init__(self, dwi_file: Path, mask: Path, tracts_dir: Path):
-#         """
-#         Estimating tissue response functions for spherical deconvolution
-#         Arguments:
-#             dwi_file {Path} -- [path to preprocessed dwi image]
-#             mask {Path} -- [path to dwi mask image]
-#             tracts_dir {Path} -- [path to output directory, where response_*tissue*.txt file will be produced]
-
-#         Returns:
-#             [type] -- [description]
-#         """
-#         self.dwi_file = dwi_file
-#         self.mask = mask
-#         self.tracts_dir = tracts_dir
-#         self.response_wm, self.response_gm, self.response_csf = [
-#             tracts_dir / f
-#             for f in ["response_wm.txt", "response_gm.txt", "response_csf.txt"]
-#         ]
-#         self.exist = check_files_existence(
-#             [self.response_wm, self.response_gm, self.response_csf]
-#         )
-
-#     def __str__(self):
-#         str_to_print = messages.GENERATE_RESPONSES.format(
-#             subj_dir=self.tracts_dir.parent,
-#             dwi_name=self.dwi_file.name,
-#             mask_name=self.mask.name,
-#             tracts_dir=self.tracts_dir,
-#         )
-#         return str_to_print
-
-#     def generate_response(self):
-#         response_wm, response_gm, response_csf = mrt_methods.generate_response(
-#             self.dwi_file, self.mask, self.tracts_dir
-#         )
-#         return response_wm, response_gm, response_csf
-
-#     def run(self):
-#         if not self.exist:
-#             logging.info(
-#                 "Estimating tissue response functions for spherical deconvolution"
-#             )
-#             (
-#                 self.response_wm,
-#                 self.response_gm,
-#                 self.response_csf,
-#             ) = self.generate_response()
-#         else:
-#             logging.warning(
-#                 "Already estimated tissue response functions, continuing..."
-#             )
-#         response_dict = dict()
-#         for key, val in zip(
-#             ["wm", "gm", "csf"], [self.response_wm, self.response_gm, self.response_csf]
-#         ):
-#             response_dict[key] = val
-#         return response_dict
-
-
-# class CalculateFibreOrientation:
-#     def __init__(
-#         self, dwi_file: Path, dwi_mask: Path, response_dict: dict, tracts_dir: Path
-#     ):
-#         """
-#         Estimation of fibre orientation distributions
-#         Arguments:
-#             dwi_file {Path} -- [path to preprocessed dwi file]
-#             response_dict {dict} -- [dictionary with "wm","gm","csf" as keys, and paths to corresponding response_{tissue}.txt files as values]
-
-#         Returns:
-#             [type] -- [description]
-#         """
-#         self.dwi_file = dwi_file
-#         self.tracts_dir = tracts_dir
-#         self.mask = dwi_mask
-#         self.response_dict = response_dict
-#         self.fod_dict = dict()
-#         for tissue in ["wm", "gm", "csf"]:
-#             self.fod_dict[tissue] = tracts_dir / f"FOD_{tissue}.mif"
-#         self.exist = check_files_existence(list(self.fod_dict.values()))
-
-#     def __str__(self):
-#         str_to_print = messages.CALCULATE_FIBER_ORIENTATION.format(
-#             subj_dir=self.tracts_dir.parent,
-#             dwi_name=self.dwi_file.name,
-#             mask_name=self.mask.name,
-#             tracts_dir=self.tracts_dir,
-#         )
-#         return str_to_print
-
-#     def fibre_orientation(self):
-#         mrt_methods.calculate_fibre_orientation(
-#             self.dwi_file, self.mask, self.response_dict, self.fod_dict
-#         )
-
-#     def run(self):
-#         if not self.exist:
-#             logging.info("Estimating Fibre Orientation Distributions")
-#             self.fibre_orientation()
-#         else:
-#             logging.warning(
-#                 "Already estimated fibre orientation distributions, continuing..."
-#             )
-#         return self.fod_dict
-
-
-# class GenerateTck:
-#     def __init__(self, fod_dict: dict, seg_5tt: Path, tract_dir: Path):
-#         """
-#         Generate .tck tracts file using Mrtrix3's iFOD2 algorithm
-#         Arguments:
-#             fod_dict {dict} -- [dictionary with "wm","gm","csf" as keys, and paths to corresponding FOD_{tissue}.mif files as values]
-#             tract_dir {Path} -- [Path to directory containing all tracts-processing-related files]
-#             seg_5tt {Path} -- [Path to 5-tissue-type.mif file]
-
-#         Returns:
-#             [type] -- [description]
-#         """
-#         self.fod_wm = fod_dict["wm"]
-#         self.seg_5tt = seg_5tt
-#         self.tractogram = tract_dir / "tractogram.tck"
-#         self.exist = check_files_existence([self.tractogram])
-
-#     def __str__(self):
-#         str_to_print = messages.GENERATE_TCK.format(
-#             subj_dir=self.tractogram.parent.parent,
-#             fod_wm_name=self.fod_wm.name,
-#             tracts_dir=self.tractogram.parent,
-#             seg_5tt_name=self.seg_5tt.name,
-#             tractogram_name=self.tractogram.name,
-#         )
-#         return str_to_print
-
-#     def generate_tracts(self):
-#         tractogram = mrt_methods.generate_tracts(
-#             self.fod_wm, self.tractogram, self.seg_5tt
-#         )
-#         logging.info(f"Generated tractogram.tck file at {tractogram.parent}")
-
-#     def run(self):
-#         if not self.exist:
-#             logging.info("Generating tractogram.tck file using iFOD2 algorithm...")
-#             self.generate_tracts()
-#         else:
-#             logging.warning(
-#                 "Already generated tractogram.\n to recreate it, please remove the currently existing .tck file"
-#             )
-#         return self.tractogram
-
-
-# class ConvertTck2Trk:
-#     def __init__(self, tck_stream: Path, dwi_nii: Path, trk_stream: Path):
-#         self.tck_stream = tck_stream
-#         self.dwi = dwi_nii
-#         self.trk_stream = trk_stream
-#         self.exist = check_files_existence([self.trk_stream])
-
-#     def __str__(self):
-#         str_to_print = messages.CONVERT_TCK_2_TRK.format(
-#             subj_dir=self.dwi.parent.parent,
-#             dwi_name=self.dwi.name,
-#             tck_name=self.tck_stream.name,
-#             trk_name=self.trk_stream.name,
-#         )
-#         return str_to_print
-
-#     def convert(self):
-#         trk_file = mrt_methods.convert_tck_to_trk(
-#             self.tck_stream, self.dwi, self.trk_stream
-#         )
-
-#     def run(self):
-#         if not self.exist:
-#             logging.info("Converting tractography file from .tck format to .trk")
-#             self.convert()
-#         else:
-#             logging.warning("Given input for .trk tractography file already exists.")
-#         return self.trk_stream
 
 
 class GenerateTractsMrtrix3:
@@ -416,6 +186,8 @@ class GenerateTractsMrtrix3:
     def print_start(self, subj: str):
         folder_name = self.subjects[subj]
         tracts_dir = folder_name / "tractography"
+        if not tracts_dir.exists():
+            tracts_dir.mkdir()
         dwi, dwi_mask, five_tissue, dwi_nii = self.load_files(subj, folder_name)
         str_to_print = messages.MRTRIX_PRINT_START.format(
             subj=subj,
@@ -423,7 +195,7 @@ class GenerateTractsMrtrix3:
             dwi_name=dwi.name,
             dwi_mask=dwi_mask.name,
             five_tissue=five_tissue.name,
-            tract_dir=tracts_dir.name,
+            tracts_dir=tracts_dir.name,
         )
         return tracts_dir, dwi, dwi_mask, five_tissue, dwi_nii, str_to_print
 
@@ -469,3 +241,9 @@ class GenerateTractsMrtrix3:
             logging.info(
                 "%s`s whole-brain tractography took %.2f minutes" % (subj, elapsed)
             )
+
+
+if __name__ == "__main__":
+    derivatives = Path("/home/gal/derivatives")
+    tracts = GenerateTractsMrtrix3(derivatives, subj="sub-09")
+    tracts.run()
