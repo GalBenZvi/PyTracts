@@ -36,7 +36,7 @@ class GenerateTck:
         tractogram = mrt_methods.generate_tracts(
             self.fod_wm, self.tractogram, self.seg_5tt
         )
-        logging.info(f"Generated tractogram.tck file at {tractogram.parent}")
+        logging.info(f"Generated tractogram.tck file at {Path(tractogram).parent}")
 
     def run(self):
         if not self.exist:

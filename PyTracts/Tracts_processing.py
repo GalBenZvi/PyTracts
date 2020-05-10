@@ -18,23 +18,23 @@ from PyTracts.MrtrixTractography import (
 from PyTracts.utils import check_dir_existence, check_dir_existence, FSLOUTTYPE
 from atlases.atlases import Atlases
 
-ATLAS = Atlases.megaatlas_dir.value
+ATLAS = Atlases.megaatlas.value
 
 
-def init_process(mother_dir="/home/gal/Brain_Networks"):
-    prep = Prep.Preprocess(mother_dir)
-    subjects = prep.subjects
-    return mother_dir, subjects
+class GenerateTractsDipy:
+    def __init__(self, mother_dir: Path, subj: str = None):
+        self.mother_dir = mother_dir
+        if subj:
+            subjects = [subj]
+        else:
+            subjects = [subj.name for subj in mother_dir.glob("sub-*")]
+        subjects.sort()
+        subjects_dict = dict()
+        for subj in subjects:
+            subjects_dict[subj] = mother_dir / subj
+        self.subjects = subjects_dict
 
-
-class Generate_Tracts_with_dipy:
-    def __init__(self, subject=None):
-        self.mother_dir, self.subjects = init_process()
-        if subject:
-            self.subjects = subject
-
-    def Gen_init_tracts_dipy(self, subj):
-        folder_name = f"{self.mother_dir}/Niftis/{subj}"
+    def Gen_init_tracts_dipy(self, folder_name:Path):
         (
             gtab,
             data,
@@ -127,7 +127,18 @@ class Generate_Connectivity:
             weighted_tracts.draw_con_mat(
                 new_data, labels_headers, weighted_fig_name, is_weighted=True
             )
-
+class GenerateTractsDipy:
+    def __init__(self, mother_dir: Path, subj: str = None):
+        self.mother_dir = mother_dir
+        if subj:
+            subjects = [subj]
+        else:
+            subjects = [subj.name for subj in mother_dir.glob("sub-*")]
+        subjects.sort()
+        subjects_dict = dict()
+        for subj in subjects:
+            subjects_dict[subj] = mother_dir / subj
+        self.subjects = subjects_dict
 
 class GenerateTractsMrtrix3:
     """
@@ -244,6 +255,6 @@ class GenerateTractsMrtrix3:
 
 
 if __name__ == "__main__":
-    derivatives = Path("/home/gal/derivatives")
-    tracts = GenerateTractsMrtrix3(derivatives, subj="sub-09")
+    derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
+    tracts = GenerateTractsMrtrix3(derivatives, subj="sub-01")
     tracts.run()
