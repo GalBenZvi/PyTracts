@@ -60,3 +60,32 @@ MRTRIX_PRINT_START = """Initializing tracts processing for {subj}...
         Brain mask: {dwi_mask} (at "dwi" subdirectory)
         Five-tissue-type (5TT): {five_tissue} (at "anat" subdirectory)
     Output files file will be located at "{tracts_dir}" subdirectory under subject's directory."""
+
+GENERATE_WHITE_MATTER = """"Resampling subject's high-resolution segmented image to DWI space...
+    Inputs:
+        - High-resolution segmented image: {labels_file}
+        - DWI image: {dwi_file}
+    Outputs:
+        - nibabel.Nifti1Image of resampled labels images in DWI space."""
+
+LOAD_DATA = """Loading data from given file names to fit Dipy necessities.
+    Inputs:
+        - Path to DWI file: {dwi_file}
+        - Path to .bvec file: {bvec}
+        - Path to .bval file: {bval}
+    Outputs:
+        - DWI image's data, affine (as numpy.ndarrays), and nib.Nifti1Image
+        - Dipy's gradient table
+"""
+
+CREATE_MODEL = """Create ODF model (CSA/D), with options to either use a deterministic approch or a probabilistic one.
+    Inputs:
+        - reconstruction: {recon}
+        - data: DWI nump.ndarray to model.
+        - gtab: Dipy's gradient table.
+        - white_matter: mask of white matter.
+        - sh_order,roi_radius,fa_thr,relatie_peak_threshold,min_seperation_angle: numerous parameter for model generation.
+        {sh},{roi},{fa},{relative},{min_separation} accordingly.
+    Outputs:
+        - {recon} model of constant angle ODF ()
+"""

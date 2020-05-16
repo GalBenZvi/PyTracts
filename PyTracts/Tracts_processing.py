@@ -21,7 +21,7 @@ from atlases.atlases import Atlases
 ATLAS = Atlases.megaatlas.value
 
 
-class GenerateTractsDipy:
+class GenerateTractsDipy_old:
     def __init__(self, mother_dir: Path, subj: str = None):
         self.mother_dir = mother_dir
         if subj:
@@ -34,7 +34,7 @@ class GenerateTractsDipy:
             subjects_dict[subj] = mother_dir / subj
         self.subjects = subjects_dict
 
-    def Gen_init_tracts_dipy(self, folder_name:Path):
+    def Gen_init_tracts_dipy(self, folder_name: Path):
         (
             gtab,
             data,
@@ -127,18 +127,8 @@ class Generate_Connectivity:
             weighted_tracts.draw_con_mat(
                 new_data, labels_headers, weighted_fig_name, is_weighted=True
             )
-class GenerateTractsDipy:
-    def __init__(self, mother_dir: Path, subj: str = None):
-        self.mother_dir = mother_dir
-        if subj:
-            subjects = [subj]
-        else:
-            subjects = [subj.name for subj in mother_dir.glob("sub-*")]
-        subjects.sort()
-        subjects_dict = dict()
-        for subj in subjects:
-            subjects_dict[subj] = mother_dir / subj
-        self.subjects = subjects_dict
+
+
 
 class GenerateTractsMrtrix3:
     """

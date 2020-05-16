@@ -31,6 +31,14 @@ def load_dwi_files(folder_name: Path):
     return dwi_file, labels_file, bvec_file, bval_file
 
 
+def resample_to_dwi(labels_file: Path, dwi_file: Path):
+    labels_img = nib.load(labels_file)
+    dwi_img = nib.load(dwi_file)
+    labels_img = resample_to_img(labels_img, dwi_img)
+    labels_img = round_seg(labels_img)
+    return labels_img
+
+
 def round_seg(img):
     """
     Round image's data (to keep segmentation values)
@@ -44,11 +52,3 @@ def round_seg(img):
     new_data = np.round(orig_data)
     new_img = nib.Nifti1Image(new_data.astype(int), img.affine)
     return new_img
-
-
-def resample_to_dwi(labels_file: Path, dwi_file: Path):
-    labels_img = nib.load(labels_file)
-    dwi_img = nib.load(dwi_file)
-    labels_img = resample_to_img(labels_img, dwi_img)
-    labels_img = round_seg(labels_img)
-    return labels_img, dwi_img
