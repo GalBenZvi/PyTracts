@@ -7,7 +7,7 @@ from pathlib import Path
 
 class LoadData:
     def __init__(self, dwi_file: Path, bvec_fname: Path, bval_fname: Path):
-        self.dwi_file: Path
+        self.dwi_file = dwi_file
         self.bvec_fname = bvec_fname
         self.bval_fname = bval_fname
 

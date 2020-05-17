@@ -5,6 +5,7 @@ from PyTracts.DipyTractography import (
     LoadData,
     CreateModel,
     CalculateSeeds,
+    StreamlineGenerator,
 )
 from dipy.io.image import load_nifti, load_nifti_data
 from dipy.core.gradients import GradientTable
@@ -24,9 +25,17 @@ class GenerateTractsDipy:
         fa_thr: float = 0.7,
         relative_peak_threshold: float = 0.8,
         min_separation_angle: int = 45,
-        stopping_threshold: float = 0.18,
-        seeds_density: list = [2, 2, 2],
+        stopping_threshold: float = 0.25,
+        seeds_density=1,
+        tractogram_fname: str = "Whole_brain_tractography.trk",
+        sphere: str = "default",
+        max_angle: float = 30.0,
+        step_size: float = 1,
     ):
+        self.tractogram_fname = tractogram_fname
+        self.sphere = sphere
+        self.max_angle = max_angle
+        self.step_size = step_size
         self.seeds_density = seeds_density
         self.stopping_threshold = stopping_threshold
         self.sh_order = sh_order
@@ -35,15 +44,15 @@ class GenerateTractsDipy:
         self.relative_peak_threshold = relative_peak_threshold
         self.min_separation_angle = min_separation_angle
         self.reconstruction = reconstruction
-        self.mother_dir = mother_dir
+        self.mother_dir = Path(mother_dir)
         if subj:
             subjects = [subj]
         else:
-            subjects = [subj.name for subj in mother_dir.glob("sub-*")]
+            subjects = [subj.name for subj in self.mother_dir.glob("sub-*")]
         subjects.sort()
         subjects_dict = dict()
         for subj in subjects:
-            subjects_dict[subj] = mother_dir / subj
+            subjects_dict[subj] = self.mother_dir / subj
         self.subjects = subjects_dict
         self.white_label = white_label
         self.gray_label = gray_label
@@ -80,7 +89,6 @@ class GenerateTractsDipy:
     ):
         model_generator = CreateModel(
             folder_name,
-            self.reconstruction,
             data,
             gtab,
             white_mask,
@@ -91,11 +99,60 @@ class GenerateTractsDipy:
             self.min_separation_angle,
             self.stopping_threshold,
         )
-        model = model_generator.run()
-        return model
+        csd_fit, stopping_criterion = model_generator.run()
+        return csd_fit, stopping_criterion
 
     def calculate_seeds(self, gray_mask: np.ndarray, affine: np.ndarray):
         seeds_calculator = CalculateSeeds(gray_mask, affine, self.seeds_density)
         seeds = seeds_calculator.calculate_seeds()
         return seeds
 
+    def generate_streamlines(
+        self, folder_name: Path, csd_fit, hardi_img, stopping_criterion, seeds, affine
+    ):
+        streamline_generator = StreamlineGenerator(
+            folder_name,
+            csd_fit,
+            hardi_img,
+            self.reconstruction,
+            stopping_criterion,
+            seeds,
+            affine,
+            self.tractogram_fname,
+            self.sphere,
+            self.max_angle,
+            self.step_size,
+        )
+        streamlines = streamline_generator.run()
+        return streamlines
+
+    def run(self):
+        for subj in self.subjects:
+            folder_name = self.subjects[subj]
+            dwi_file, segment_file_name, bvec_file, bval_file = self.load_file_names(
+                folder_name
+            )
+            white_mask, gray_mask = self.white_and_gray_masks(
+                segment_file_name, dwi_file
+            )
+            data, affine, hardi_img, gtab = self.load_data(
+                dwi_file, bvec_file, bval_file
+            )
+            csd_fit, stopping_criterion = self.create_model(
+                folder_name / "tractography", data, white_mask, gtab
+            )
+            seeds = self.calculate_seeds(gray_mask, affine)
+            streamlines = self.generate_streamlines(
+                folder_name / "tractography",
+                csd_fit,
+                hardi_img,
+                stopping_criterion,
+                seeds,
+                affine,
+            )
+
+
+if __name__ == "__main__":
+    derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
+    tracts = GenerateTractsDipy(derivatives, subj="sub-01")
+    tracts.run()

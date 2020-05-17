@@ -14,7 +14,6 @@ class CreateModel:
     def __init__(
         self,
         folder_name: Path,
-        reconstruction: str,
         data: np.ndarray,
         gtab: GradientTable,
         white_matter: np.ndarray,
@@ -23,11 +22,10 @@ class CreateModel:
         fa_thr: float = 0.7,
         relative_peak_threshold: float = 0.8,
         min_separation_angle: int = 45,
-        stopping_threshold: float = 0.18,
+        stopping_threshold: float = 0.25,
     ):
         self.folder_name = folder_name
         self.stopping_threshold = stopping_threshold
-        self.reconstruction = reconstruction
         self.data = data
         self.gtab = gtab
         self.white_mask = white_matter
@@ -39,7 +37,6 @@ class CreateModel:
 
     def __str__(self):
         str_to_print = messages.CREATE_MODEL(
-            recon=self.reconstruction,
             sh=self.sh_order,
             roi=self.roi_radius,
             fa=self.fa_thr,
@@ -56,22 +53,11 @@ class CreateModel:
 
     def calculate_model(self, response):
         csa_model = CsaOdfModel(self.gtab, sh_order=self.sh_order)
-        if self.reconstruction == "deterministic":
-            csa_peaks = peaks_from_model(
-                csa_model,
-                self.data,
-                default_sphere,
-                relative_peak_threshold=self.relative_peak_threshold,
-                min_separation_angle=self.min_separation_angle,
-                mask=self.white_mask,
-            )
-            return csa_peaks, csa_model
-        elif self.reconstruction == "probabilistic":
-            csd_model = ConstrainedSphericalDeconvModel(
-                self.gtab, self.response, sh_order=self.sh_order
-            )
-            csd_fit = csd_model.fit(self.data, mask=self.white_mask)
-            return csd_fit, csa_model
+        csd_model = ConstrainedSphericalDeconvModel(
+            self.gtab, response, sh_order=self.sh_order
+        )
+        csd_fit = csd_model.fit(self.data, mask=self.white_mask)
+        return csd_fit, csa_model
 
     def create_stopping_criterion(self, csa_model):
         gfa = csa_model.fit(self.data, mask=self.white_mask).gfa
@@ -104,4 +90,4 @@ class CreateModel:
         odf_model, csa_model = self.calculate_model(response)
         self.quality_assurance(odf_model)
         stopping_criterion = self.create_stopping_criterion(csa_model)
-        return odf_model
+        return odf_model, stopping_criterion

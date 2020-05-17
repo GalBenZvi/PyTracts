@@ -78,14 +78,28 @@ LOAD_DATA = """Loading data from given file names to fit Dipy necessities.
         - Dipy's gradient table
 """
 
-CREATE_MODEL = """Create ODF model (CSA/D), with options to either use a deterministic approch or a probabilistic one.
+CREATE_MODEL = """Create Constrained Spherical Deconvolution (CSD) and Constant Solid Angle (CSA) models to fit the data.
     Inputs:
-        - reconstruction: {recon}
         - data: DWI nump.ndarray to model.
         - gtab: Dipy's gradient table.
         - white_matter: mask of white matter.
         - sh_order,roi_radius,fa_thr,relatie_peak_threshold,min_seperation_angle: numerous parameter for model generation.
         {sh},{roi},{fa},{relative},{min_separation} accordingly.
     Outputs:
-        - {recon} model of constant angle ODF ()
+        - CSD and CSA models that fit the data.
+"""
+
+GENERATE_STREAMLINES = """Generate tractogram ("streamlines") based on fitted CSD model.
+    Inputs:
+        - Directory in which the tractogram will be saved: {folder}.
+        - Fitted CSD model.
+        - DWI image.
+        - Fiber tracking (reconstruction) method: {recon}.
+        - Stopping criterion.
+        - Seed mask.
+        - Image's affine matrix.
+        - Tractogram's file name: {fname}.
+        - Sphere type, maximum fiber's angle, step size: {sphere},{angle},{step} accordingly.
+    Outputs:
+        - Tractogram file located at {tracts_loc}
 """

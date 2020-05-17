@@ -117,7 +117,6 @@ def create_act_classifier(fa, folder_name, labels):  # Does not work
 
 def create_streamlines(csd_fit, classifier, seeds, affine):
     from dipy.data import default_sphere
-    from dipy.direction import DeterministicMaximumDirectionGetter
     from dipy.tracking.streamline import Streamlines
 
     detmax_dg = DeterministicMaximumDirectionGetter.from_shcoeff(

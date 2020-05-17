@@ -25,7 +25,7 @@ class GenerateGrayAndWhite:
 
     def extract_white_and_gray(self, resampled_img: nib.Nifti1Image):
         data = resampled_img.get_fdata()
-        white_matter = data == self.white_label
+        white_matter = data == (self.white_label) | (data == self.gray_label)
         gray_matter = data == self.gray_label
         return white_matter, gray_matter
 
