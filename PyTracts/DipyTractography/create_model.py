@@ -66,8 +66,8 @@ class CreateModel:
         tenfit = tensor_model.fit(self.data, mask=self.white_mask)
         fa = fractional_anisotropy(tenfit.evals)
         stopping_criterion = ThresholdStoppingCriterion(fa, 0.18)
-        #gfa = csa_model.fit(self.data, mask=self.white_mask).gfa
-        #stopping_criterion = ThresholdStoppingCriterion(gfa, self.stopping_threshold)
+        # gfa = csa_model.fit(self.data, mask=self.white_mask).gfa
+        # stopping_criterion = ThresholdStoppingCriterion(gfa, self.stopping_threshold)
         return stopping_criterion
 
     def quality_assurance(self, model):
@@ -96,4 +96,4 @@ class CreateModel:
         odf_model, csa_model = self.calculate_model(response)
         self.quality_assurance(odf_model)
         stopping_criterion = self.create_stopping_criterion(csa_model)
-        return odf_model, stopping_criterion
+        return odf_model, stopping_criterion, csa_model

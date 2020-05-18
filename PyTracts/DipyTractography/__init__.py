@@ -4,3 +4,4 @@ from PyTracts.DipyTractography.load_data import LoadData
 from PyTracts.DipyTractography.create_model import CreateModel
 from PyTracts.DipyTractography.calculate_seeds import CalculateSeeds
 from PyTracts.DipyTractography.streamline_generator import StreamlineGenerator
+from PyTracts.DipyTractography.default_streamlines import DefaultStreamlines

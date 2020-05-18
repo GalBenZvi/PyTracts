@@ -25,6 +25,7 @@ class StreamlineGenerator:
         sphere: str = "default",
         max_angle: float = 30.0,
         step_size: float = 0.5,
+        csa_peaks=None,
     ):
         self.folder_name = folder_name
         self.reconstruction = reconstruction
@@ -40,6 +41,7 @@ class StreamlineGenerator:
         self.seeds = seeds
         self.step_size = step_size
         self.max_angle = max_angle
+        self.csa_peaks = csa_peaks
 
     def __str__(self):
         str_to_print = messages.GENERATE_STREAMLINES(
@@ -62,6 +64,8 @@ class StreamlineGenerator:
             directions_getter = ProbabilisticDirectionGetter.from_shcoeff(
                 self.csd_fit.shm_coeff, max_angle=self.max_angle, sphere=self.sphere
             )
+        elif self.reconstruction.lower() == "default":
+            directions_getter = self.csa_peaks
         return directions_getter
 
     def generate_streamlines(self, directions_getter):
@@ -73,11 +77,6 @@ class StreamlineGenerator:
             step_size=self.step_size,
         )
         streamlines = Streamlines(streamline_generator)
-        long_streamlines = np.ones((len(streamlines)), bool)
-        for i in range(0, len(streamlines)):
-            if streamlines[i].shape[0] < 50:
-                long_streamlines[i] = False
-        streamlines = streamlines[long_streamlines]
         return streamlines
 
     def save_streamlines(self, streamlines):

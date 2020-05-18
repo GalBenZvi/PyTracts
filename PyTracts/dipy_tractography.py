@@ -6,6 +6,7 @@ from PyTracts.DipyTractography import (
     CreateModel,
     CalculateSeeds,
     StreamlineGenerator,
+    DefaultStreamlines,
 )
 from dipy.io.image import load_nifti, load_nifti_data
 from dipy.core.gradients import GradientTable
@@ -16,24 +17,22 @@ class GenerateTractsDipy:
     def __init__(
         self,
         mother_dir: Path,
-        reconstruction: str = "deterministic",
+        reconstruction: str = "probabilistic",
         subj: str = None,
         white_label: int = 3,
         gray_label: int = 2,
-        small_delta:float=15.5,
         sh_order: int = 6,
         roi_radius: int = 10,
         fa_thr: float = 0.7,
         relative_peak_threshold: float = 0.8,
         min_separation_angle: int = 45,
-        stopping_threshold: float = 0.08,
+        stopping_threshold: float = 0.25,
         seeds_density=1,
         tractogram_fname: str = "Whole_brain_tractography.trk",
-        sphere: str = "small",
+        sphere: str = "default",
         max_angle: float = 30.0,
         step_size: float = 1,
     ):
-        self.small_delta = small_delta
         self.tractogram_fname = tractogram_fname
         self.sphere = sphere
         self.max_angle = max_angle
@@ -78,7 +77,7 @@ class GenerateTractsDipy:
         return white_mask, gray_mask
 
     def load_data(self, dwi_file: Path, bvec_file: Path, bval_file: Path):
-        data_loader = LoadData(dwi_file, bvec_file, bval_file,self.small_delta)
+        data_loader = LoadData(dwi_file, bvec_file, bval_file)
         data, affine, hardi_img, gtab = data_loader.run()
         return data, affine, hardi_img, gtab
 
@@ -101,8 +100,8 @@ class GenerateTractsDipy:
             self.min_separation_angle,
             self.stopping_threshold,
         )
-        csd_fit, stopping_criterion = model_generator.run()
-        return csd_fit, stopping_criterion
+        csd_fit, stopping_criterion, csa_model = model_generator.run()
+        return csd_fit, stopping_criterion, csa_model
 
     def calculate_seeds(self, gray_mask: np.ndarray, affine: np.ndarray):
         seeds_calculator = CalculateSeeds(gray_mask, affine, self.seeds_density)
@@ -110,7 +109,14 @@ class GenerateTractsDipy:
         return seeds
 
     def generate_streamlines(
-        self, folder_name: Path, csd_fit, hardi_img, stopping_criterion, seeds, affine
+        self,
+        folder_name: Path,
+        csd_fit,
+        hardi_img,
+        stopping_criterion,
+        seeds,
+        affine,
+        csa_peaks,
     ):
         streamline_generator = StreamlineGenerator(
             folder_name,
@@ -124,9 +130,24 @@ class GenerateTractsDipy:
             self.sphere,
             self.max_angle,
             self.step_size,
+            csa_peaks,
         )
         streamlines = streamline_generator.run()
         return streamlines
+
+    def default_streamlines(
+        self, folder_name: Path, csa_model, data: mp.ndarray, white_matter: np.ndarray
+    ):
+        csa_calculator = DefaultStreamlines(
+            folder_name,
+            csa_model,
+            data,
+            white_matter,
+            self.relative_peak_threshold,
+            self.min_separation_angle,
+        )
+        csa_peaks = csa_calculator.generate_peaks()
+        return csa_peaks
 
     def run(self):
         for subj in self.subjects:
@@ -140,10 +161,16 @@ class GenerateTractsDipy:
             data, affine, hardi_img, gtab = self.load_data(
                 dwi_file, bvec_file, bval_file
             )
-            csd_fit, stopping_criterion = self.create_model(
+            csd_fit, stopping_criterion, csa_model = self.create_model(
                 folder_name / "tractography", data, white_mask, gtab
             )
             seeds = self.calculate_seeds(gray_mask, affine)
+            if self.reconstruction.lower() == "default":
+                csa_peaks = self.default_streamlines(
+                    folder_name / "tractography", csa_model, data, white_mask
+                )
+            else:
+                csa_peaks = None
             streamlines = self.generate_streamlines(
                 folder_name / "tractography",
                 csd_fit,
@@ -151,10 +178,11 @@ class GenerateTractsDipy:
                 stopping_criterion,
                 seeds,
                 affine,
+                csa_peaks,
             )
 
 
 if __name__ == "__main__":
-    derivatives = Path("/home/gal/derivatives")
+    derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
     tracts = GenerateTractsDipy(derivatives, subj="sub-01")
     tracts.run()
