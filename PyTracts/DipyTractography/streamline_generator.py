@@ -73,6 +73,11 @@ class StreamlineGenerator:
             step_size=self.step_size,
         )
         streamlines = Streamlines(streamline_generator)
+        long_streamlines = np.ones((len(streamlines)), bool)
+        for i in range(0, len(streamlines)):
+            if streamlines[i].shape[0] < 50:
+                long_streamlines[i] = False
+        streamlines = streamlines[long_streamlines]
         return streamlines
 
     def save_streamlines(self, streamlines):

@@ -245,6 +245,6 @@ class GenerateTractsMrtrix3:
 
 
 if __name__ == "__main__":
-    derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
+    derivatives = Path("/home/gal/derivatives")
     tracts = GenerateTractsMrtrix3(derivatives, subj="sub-01")
     tracts.run()

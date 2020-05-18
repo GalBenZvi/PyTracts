@@ -6,11 +6,11 @@ from pathlib import Path
 
 
 class LoadData:
-    def __init__(self, dwi_file: Path, bvec_fname: Path, bval_fname: Path):
+    def __init__(self, dwi_file: Path, bvec_fname: Path, bval_fname: Path,small_delta:float):
         self.dwi_file = dwi_file
         self.bvec_fname = bvec_fname
         self.bval_fname = bval_fname
-
+        self.small_delta = small_delta
     def __str__(self):
         str_to_print = messages.LOAD_DATA(
             dwi_file=self.dwi_file, bvec=self.bvec_fname, bval=self.bval_fname
@@ -23,7 +23,7 @@ class LoadData:
 
     def load_gtab(self):
         bvals, bvecs = read_bvals_bvecs(str(self.bval_fname), str(self.bvec_fname))
-        gtab = gradient_table(bvals, bvecs)
+        gtab = gradient_table(bvals, bvecs, small_delta = self.small_delta)
         return gtab
 
     def run(self):

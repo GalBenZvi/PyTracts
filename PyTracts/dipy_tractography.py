@@ -16,22 +16,24 @@ class GenerateTractsDipy:
     def __init__(
         self,
         mother_dir: Path,
-        reconstruction: str = "probabilistic",
+        reconstruction: str = "deterministic",
         subj: str = None,
         white_label: int = 3,
         gray_label: int = 2,
+        small_delta:float=15.5,
         sh_order: int = 6,
         roi_radius: int = 10,
         fa_thr: float = 0.7,
         relative_peak_threshold: float = 0.8,
         min_separation_angle: int = 45,
-        stopping_threshold: float = 0.25,
+        stopping_threshold: float = 0.08,
         seeds_density=1,
         tractogram_fname: str = "Whole_brain_tractography.trk",
-        sphere: str = "default",
+        sphere: str = "small",
         max_angle: float = 30.0,
         step_size: float = 1,
     ):
+        self.small_delta = small_delta
         self.tractogram_fname = tractogram_fname
         self.sphere = sphere
         self.max_angle = max_angle
@@ -76,7 +78,7 @@ class GenerateTractsDipy:
         return white_mask, gray_mask
 
     def load_data(self, dwi_file: Path, bvec_file: Path, bval_file: Path):
-        data_loader = LoadData(dwi_file, bvec_file, bval_file)
+        data_loader = LoadData(dwi_file, bvec_file, bval_file,self.small_delta)
         data, affine, hardi_img, gtab = data_loader.run()
         return data, affine, hardi_img, gtab
 
@@ -153,6 +155,6 @@ class GenerateTractsDipy:
 
 
 if __name__ == "__main__":
-    derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
+    derivatives = Path("/home/gal/derivatives")
     tracts = GenerateTractsDipy(derivatives, subj="sub-01")
     tracts.run()

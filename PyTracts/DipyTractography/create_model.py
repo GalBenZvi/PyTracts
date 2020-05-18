@@ -3,6 +3,8 @@ from dipy.reconst.shm import CsaOdfModel
 from dipy.data import default_sphere
 from dipy.direction import peaks_from_model
 from dipy.core.gradients import GradientTable
+import dipy.reconst.dti as dti
+from dipy.reconst.dti import fractional_anisotropy
 from dipy.tracking.stopping_criterion import ThresholdStoppingCriterion
 from pathlib import Path
 import numpy as np
@@ -60,8 +62,12 @@ class CreateModel:
         return csd_fit, csa_model
 
     def create_stopping_criterion(self, csa_model):
-        gfa = csa_model.fit(self.data, mask=self.white_mask).gfa
-        stopping_criterion = ThresholdStoppingCriterion(gfa, self.stopping_threshold)
+        tensor_model = dti.TensorModel(self.gtab)
+        tenfit = tensor_model.fit(self.data, mask=self.white_mask)
+        fa = fractional_anisotropy(tenfit.evals)
+        stopping_criterion = ThresholdStoppingCriterion(fa, 0.18)
+        #gfa = csa_model.fit(self.data, mask=self.white_mask).gfa
+        #stopping_criterion = ThresholdStoppingCriterion(gfa, self.stopping_threshold)
         return stopping_criterion
 
     def quality_assurance(self, model):
