@@ -4,8 +4,11 @@ from dipy.io.gradients import read_bvals_bvecs
 from dipy.io.image import load_nifti, load_nifti_data
 from pathlib import Path
 import nibabel as nib
+from nipype.interfaces import fsl
 from nilearn.image import resample_to_img
 import numpy as np
+
+FSLOUTTYPE = ".nii.gz"
 
 
 def load_dwi_files(folder_name: Path):
@@ -31,12 +34,15 @@ def load_dwi_files(folder_name: Path):
     return dwi_file, labels_file, bvec_file, bval_file
 
 
-def resample_to_dwi(labels_file: Path, dwi_file: Path):
-    labels_img = nib.load(labels_file)
-    dwi_img = nib.load(dwi_file)
-    labels_img = resample_to_img(labels_img, dwi_img)
-    labels_img = round_seg(labels_img)
-    return labels_img
+def resample_to_dwi(labels_file: Path, dwi_file: Path, out_file: Path):
+    flt = fsl.FLIRT()
+    flt.inputs.in_file = labels_file
+    flt.inputs.reference = dwi_file
+    flt.inputs.out_file = out_file
+    if not out_file.exists():
+        flt.run()
+    resampled_img = round_seg(nib.load(out_file))
+    return resampled_img
 
 
 def round_seg(img):

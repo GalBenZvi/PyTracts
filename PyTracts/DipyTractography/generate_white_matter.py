@@ -1,4 +1,4 @@
-import PyTracts.DipyTractography.dipy_methods as dipy_method
+from PyTracts.DipyTractography.dipy_methods import resample_to_dwi, FSLOUTTYPE
 from logs import messages
 from pathlib import Path
 import nibabel as nib
@@ -20,7 +20,10 @@ class GenerateGrayAndWhite:
         return str_to_print
 
     def resample_labels(self):
-        resampled_img = dipy_method.resample_to_dwi(self.labels_fname, self.dwi_fname)
+        resampled_fname = Path(self.dwi_fname.parent / f"segmentation{FSLOUTTYPE}")
+        resampled_img = resample_to_dwi(
+            self.labels_fname, self.dwi_fname, resampled_fname
+        )
         return resampled_img
 
     def extract_white_and_gray(self, resampled_img: nib.Nifti1Image):

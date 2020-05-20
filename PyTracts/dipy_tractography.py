@@ -13,6 +13,7 @@ from dipy.core.gradients import GradientTable
 import numpy as np
 
 
+
 class GenerateTractsDipy:
     def __init__(
         self,
@@ -136,7 +137,7 @@ class GenerateTractsDipy:
         return streamlines
 
     def default_streamlines(
-        self, folder_name: Path, csa_model, data: mp.ndarray, white_matter: np.ndarray
+        self, folder_name: Path, csa_model, data: np.ndarray, white_matter: np.ndarray
     ):
         csa_calculator = DefaultStreamlines(
             folder_name,
@@ -184,5 +185,5 @@ class GenerateTractsDipy:
 
 if __name__ == "__main__":
     derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
-    tracts = GenerateTractsDipy(derivatives, subj="sub-01")
+    tracts = GenerateTractsDipy(derivatives, subj="sub-01", reconstruction="default")
     tracts.run()
