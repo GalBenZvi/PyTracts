@@ -33,8 +33,10 @@ class GenerateTractsDipy:
         sphere: str = "default",
         max_angle: float = 30.0,
         step_size: float = 1,
+        small_delta=15.5,
     ):
         self.tractogram_fname = tractogram_fname
+        self.small_delta = small_delta
         self.sphere = sphere
         self.max_angle = max_angle
         self.step_size = step_size
@@ -78,7 +80,7 @@ class GenerateTractsDipy:
         return white_mask, gray_mask
 
     def load_data(self, dwi_file: Path, bvec_file: Path, bval_file: Path):
-        data_loader = LoadData(dwi_file, bvec_file, bval_file)
+        data_loader = LoadData(dwi_file, bvec_file, bval_file, self.small_delta)
         data, affine, hardi_img, gtab = data_loader.run()
         return data, affine, hardi_img, gtab
 
@@ -153,6 +155,9 @@ class GenerateTractsDipy:
     def run(self):
         for subj in self.subjects:
             folder_name = self.subjects[subj]
+            tracts_dir = folder_name / "tractography"
+            if not tracts_dir.exists():
+                tracts_dir.mkdir()
             dwi_file, wm_fname, gm_fname, bvec_file, bval_file = self.load_file_names(
                 folder_name
             )
@@ -185,5 +190,7 @@ class GenerateTractsDipy:
 
 if __name__ == "__main__":
     derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
-    tracts = GenerateTractsDipy(derivatives, subj="sub-01", reconstruction="default")
+    tracts = GenerateTractsDipy(
+        derivatives, subj="sub-12", reconstruction="deterministic"
+    )
     tracts.run()
