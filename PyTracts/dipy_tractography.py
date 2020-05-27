@@ -18,7 +18,7 @@ class GenerateTractsDipy:
     def __init__(
         self,
         mother_dir: Path,
-        reconstruction: str = "probabilistic",
+        reconstruction: str = "deterministic",
         subj: str = None,
         white_label: int = 3,
         gray_label: int = 2,
@@ -189,8 +189,8 @@ class GenerateTractsDipy:
 
 
 if __name__ == "__main__":
-    derivatives = Path("/Users/dumbeldore/Desktop/derivatives")
+    derivatives = Path("/home/gal/derivatives_2")
     tracts = GenerateTractsDipy(
-        derivatives, subj="sub-12", reconstruction="deterministic"
+        derivatives, reconstruction="deterministic"
     )
     tracts.run()
